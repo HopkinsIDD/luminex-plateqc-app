@@ -238,7 +238,6 @@ modHlyE <- drm(log(value) ~ log(conc), data=dcs[dcs$controlGroup=='HlyE mAb' & d
 dcs[dcs$controlGroup=='HlyE mAb' & dcs$antigen=='HlyE', c('pred','ciL','ciU')] <- predict(modHlyE, interval='confidence')
 
 # read in previous runs
-setwd('C:/Users/Megan/Desktop/Cholera/IVI/NMC Study/ForComp')
 prev <- read.csv('PrevRuns.csv')
 
 # plot
