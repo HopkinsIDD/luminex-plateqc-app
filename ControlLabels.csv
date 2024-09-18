@@ -1,0 +1,69 @@
+﻿Label,control_sample,conc,labs_if_unknown
+Control: MGH mixed pool1:1000,MGH mixed pool,0.001,Unknown1
+Control: MGH mixed pool1:1000,MGH mixed pool,0.001,Unknown1
+Control: MGH mixed pool1:4000,MGH mixed pool,0.00025,Unknown2
+Control: MGH mixed pool1:4000,MGH mixed pool,0.00025,Unknown2
+Control: MGH mixed pool1:16000,MGH mixed pool,0.0000625,Unknown3
+Control: MGH mixed pool1:16000,MGH mixed pool,0.0000625,Unknown3
+Control: MGH mixed pool1:64000,MGH mixed pool,0.000015625,Unknown4
+Control: MGH mixed pool1:64000,MGH mixed pool,0.000015625,Unknown4
+Control: MGH mixed pool1:256000,MGH mixed pool,3.91E-06,Unknown5
+Control: MGH mixed pool1:256000,MGH mixed pool,3.91E-06,Unknown5
+Control: MGH mixed pool1:1024000,MGH mixed pool,9.77E-07,Unknown6
+Control: MGH mixed pool1:1024000,MGH mixed pool,9.77E-07,Unknown6
+Control: MGH mixed pool1:4096000,MGH mixed pool,2.44E-07,Unknown7
+Control: MGH mixed pool1:4096000,MGH mixed pool,2.44E-07,Unknown7
+Control: MGH mixed pool1:16384000,MGH mixed pool,6.10E-08,Unknown8
+Control: MGH mixed pool1:16384000,MGH mixed pool,6.10E-08,Unknown8
+Control: Negative COVID1:1000,Negative COVID,0.001,Unknown9
+Control: Negative COVID1:1000,Negative COVID,0.001,Unknown9
+Control: HlyE mAb50 ng.mL,HlyE mAb,50,Unknown10
+Control: HlyE mAb50 ng.mL,HlyE mAb,50,Unknown10
+Control: HlyE mAb12.5 ng.mL,HlyE mAb,12.5,Unknown11
+Control: HlyE mAb12.5 ng.mL,HlyE mAb,12.5,Unknown11
+Control: HlyE mAb3.125 ng.mL,HlyE mAb,3.125,Unknown12
+Control: HlyE mAb3.125 ng.mL,HlyE mAb,3.125,Unknown12
+Control: HlyE mAb0.78125 ng.mL,HlyE mAb,0.78125,Unknown13
+Control: HlyE mAb0.78125 ng.mL,HlyE mAb,0.78125,Unknown13
+Control: HlyE mAb0.1953125 ng.mL,HlyE mAb,0.1953125,Unknown14
+Control: HlyE mAb0.1953125 ng.mL,HlyE mAb,0.1953125,Unknown14
+Control: HlyE mAb0.048828125 ng.mL,HlyE mAb,0.048828125,Unknown15
+Control: HlyE mAb0.048828125 ng.mL,HlyE mAb,0.048828125,Unknown15
+Control: HlyE mAb0.012207031 ng.mL,HlyE mAb,0.012207031,Unknown16
+Control: HlyE mAb0.012207031 ng.mL,HlyE mAb,0.012207031,Unknown16
+Control: HlyE mAb0.003051758 ng.mL,HlyE mAb,0.003051758,Unknown17
+Control: HlyE mAb0.003051758 ng.mL,HlyE mAb,0.003051758,Unknown17
+Control: MGH VC pool1:100,MGH VC pool,0.01,Unknown18
+Control: MGH VC pool1:100,MGH VC pool,0.01,Unknown18
+Control: MGH VC pool1:400,MGH VC pool,0.0025,Unknown19
+Control: MGH VC pool1:400,MGH VC pool,0.0025,Unknown19
+Control: MGH VC pool1:1600,MGH VC pool,0.000625,Unknown20
+Control: MGH VC pool1:1600,MGH VC pool,0.000625,Unknown20
+Control: MGH VC pool1:6400,MGH VC pool,0.00015625,Unknown21
+Control: MGH VC pool1:6400,MGH VC pool,0.00015625,Unknown21
+Control: MGH VC pool1:25600,MGH VC pool,3.91E-05,Unknown22
+Control: MGH VC pool1:25600,MGH VC pool,3.91E-05,Unknown22
+Control: MGH VC pool1:102400,MGH VC pool,9.77E-06,Unknown23
+Control: MGH VC pool1:102400,MGH VC pool,9.77E-06,Unknown23
+Control: MGH VC pool1:409600,MGH VC pool,2.44E-06,Unknown24
+Control: MGH VC pool1:409600,MGH VC pool,2.44E-06,Unknown24
+Control: MGH VC pool1:1638400,MGH VC pool,6.10E-07,Unknown25
+Control: MGH VC pool1:1638400,MGH VC pool,6.10E-07,Unknown25
+Control: MGH Typhi HL1:1000,MGH Typhi HL,0.001,Unknown26
+Control: MGH Typhi HL1:1000,MGH Typhi HL,0.001,Unknown26
+Control: MGH Typhi HL1:4000,MGH Typhi HL,0.00025,Unknown27
+Control: MGH Typhi HL1:4000,MGH Typhi HL,0.00025,Unknown27
+Control: MGH Typhi HL1:16000,MGH Typhi HL,0.0000625,Unknown28
+Control: MGH Typhi HL1:16000,MGH Typhi HL,0.0000625,Unknown28
+Control: MGH Cholera HL1:1000,MGH Cholera HL,0.001,Unknown29
+Control: MGH Cholera HL1:1000,MGH Cholera HL,0.001,Unknown29
+Control: MGH Cholera HL1:4000,MGH Cholera HL,0.00025,Unknown30
+Control: MGH Cholera HL1:4000,MGH Cholera HL,0.00025,Unknown30
+Control: MGH Cholera HL1:16000,MGH Cholera HL,0.0000625,Unknown31
+Control: MGH Cholera HL1:16000,MGH Cholera HL,0.0000625,Unknown31
+Control: MGH Shigella HL1:1000,MGH Shigella HL,0.001,Unknown32
+Control: MGH Shigella HL1:1000,MGH Shigella HL,0.001,Unknown32
+Control: MGH Shigella HL1:4000,MGH Shigella HL,0.00025,Unknown33
+Control: MGH Shigella HL1:4000,MGH Shigella HL,0.00025,Unknown33
+Control: MGH Shigella HL1:16000,MGH Shigella HL,0.0000625,Unknown34
+Control: MGH Shigella HL1:16000,MGH Shigella HL,0.0000625,Unknown34
