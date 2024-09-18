@@ -1,0 +1,326 @@
+---
+format:
+  html:
+    embed-resources: true
+editor: visual
+params:
+  raw: NULL
+  plate_name: NULL
+title: "QC Report: `r params$plate_name`"
+---
+
+```{r setup, include=FALSE, warning=FALSE, echo=FALSE}
+library(readxl)
+library(ggplot2)
+library(data.table)
+library(tidyr)
+library(stringr)
+library(downloadthis)
+library(data.table)
+library(knitr)
+library(drc)
+library(cowplot)
+
+
+# function to tidy raw xponent csv and make long format 
+format_func <- function(raw_data, metric, n_samps, n_antigens){
+  
+  # which row does this metric start at
+  row_ind <- which(raw_data$V2==metric)
+  
+  # extract that data
+  dtm <- raw_data[(row_ind+1):(row_ind+n_samps+1), ]
+  colnames(dtm) <- as.character(dtm[1,])
+  dtm <- dtm[-1,1:(n_antigens+2)]
+  
+  # transform to long dataframe
+  dtm_long <- tidyr::gather(dtm, key='antigen', value='value', 3:(n_antigens+2))
+  dtm_long$value <- as.numeric(dtm_long$value)
+  dtm_long <- dtm_long[!dtm_long$antigen=='Total Events', ]
+  
+  # add some info
+  dtm_long$metric <- metric
+  dtm_long$group <- 'Samples'
+  dtm_long$group[dtm_long$Sample=='Background0'] <- 'B'
+  dtm_long$group[which(substr(dtm_long$Sample, 1, 7)=='Control')] <- 'Controls'
+  
+  # separate unique background wells
+  n_backgrounds <- length(unique(dtm$Location[dtm$Sample=='Background0']))
+  dtm_long$Sample[dtm_long$Sample=='Background0'] <- paste('Background', seq(1,n_backgrounds), sep='_')
+  
+  
+  return(dtm_long)
+  
+}
+
+# read in raw file
+raw <- as.data.frame(params$raw)
+
+
+# read in control labels & concentrations
+ctrl_labs <- read.csv('FinalControlLabels.csv')
+
+
+```
+
+```{r summary info, include=FALSE}
+
+# extract key plate params
+n_samps <- as.numeric(raw[which(raw$V1=='Samples'),2])
+date <- raw$V2[raw$V1=='Date']
+operator <- raw$V2[raw$V1=='Operator']
+mode <- raw$V2[raw$V1=='ProtocolOperatingMode']
+plate_name <- raw$V2[raw$V1=='Batch']
+plate_size <- raw$V5[raw$V1=='ProtocolPlate']
+rows <- raw[which(raw$V1=='Location')[1],]
+n_antigens <- which(rows=='Total Events') - 3
+antigens <- as.character(raw[which(raw$V1=='Location')[1], 3:(n_antigens+2)])
+
+```
+
+## Plate details
+
+```{r table of summary params, echo=FALSE}
+
+# table of plate details
+summ_tab <- data.frame(Param=c('Plate Name','Date','Operator','Operating Mode','Plate size','N antigens','N samples'),
+                       Value=c(plate_name, date, operator, mode, plate_size, n_antigens, n_samps))
+colnames(summ_tab) <- c('','')
+
+# knit table
+knitr::kable(summ_tab, align='cc')
+
+
+```
+
+## Bead counts
+
+```{r plot bead counts, echo=FALSE, warning=FALSE, fig.width=22, fig.height=12}
+
+# extract bead counts
+countsdf <- format_func(raw, metric='Count', n_samps, n_antigens)
+
+# tidy antigen names
+countsdf$antigen[countsdf$antigen=='CtXB'] <- 'CtxB'
+countsdf$antigen[countsdf$antigen=='HlYE antigen '] <- 'HlyE'
+countsdf$antigen[countsdf$antigen=='HlYE antigen'] <- 'HlyE'
+countsdf$antigen[countsdf$antigen=='iPAB'] <- 'ipaB'
+countsdf$antigen[countsdf$antigen=='PTA OSP antigen'] <- 'PTA OSP'
+countsdf$antigen[countsdf$antigen=='SF2A OSP BSA'] <- 'sf2a OSP-BSA'
+countsdf$antigen[countsdf$antigen=='SF3A OSP BSA'] <- 'sf3a OSP-BSA'
+countsdf$antigen[countsdf$antigen=='SF6 OSP BSA'] <- 'sf6 OSP-BSA'
+countsdf$antigen[countsdf$antigen=='Sonnei OSP BSA'] <- 'sonnei OSP-BSA'
+countsdf$antigen[countsdf$antigen=='Ty21A OSP antigen'] <- 'Ty21a OSP'
+antigens <- unique(countsdf$antigen)
+
+# group bead counts by threshold
+countsdf$count_grp <- '≥50'
+countsdf$count_grp[countsdf$value<50] <- '30-49'
+countsdf$count_grp[countsdf$value<30] <- '<30'
+countsdf$count_grp <- factor(countsdf$count_grp, levels=c('<30','30-49','≥50'))
+
+# define colours for bead count groups
+cols <- c('<30'='firebrick1', '30-49'='orange','≥50'='palegreen')
+
+# plot
+ggplot(countsdf, aes(Location, antigen))+ geom_tile(aes(fill=count_grp), col='grey')+
+  theme_bw()+ labs(fill='count')+ scale_fill_manual(values=cols)+
+  facet_grid(. ~ group, scales = "free", space='free')+ xlab('Well')+
+  theme(text=element_text(size=24), axis.text.x=element_blank(), axis.ticks.x=element_blank(),
+        axis.title.y=element_blank())
+
+```
+
+```{r, bead count checks, echo=FALSE}
+
+# bead counts of background wells
+cbo <- countsdf[countsdf$group=='B', ]
+cbo$include <- 1
+cbo$include[cbo$count_grp=='<30'] <- 0
+
+# bead counts for background
+tab_cbo <- data.frame(antigen=antigens, n_wells=NA)
+for(i in 1:length(antigens)){
+  tab_cbo$n_wells[i] <- nrow(cbo[cbo$antigen==antigens[i] & cbo$value>29, ])
+}
+
+# at least 2 good background wells per antigen
+tab_cbo$g2 <- 1
+tab_cbo$g2[tab_cbo$n_wells<2] <- 0
+if(sum(tab_cbo$g2)==n_antigens){
+  enough_backgrounds <- paste('Yes✅')
+}else{
+  enough_backgrounds <- paste('No, insufficient background wells for antigens:', paste(tab_cbo$antigen[tab_cbo$g2==0]), sep=' ')
+}
+
+# bead count for controls
+tab_cc <- data.frame(control=rep(unique(ctrl_labs$Label), n_antigens), 
+                     antigen=sort(rep(antigens,length(unique(ctrl_labs$Label)))), 
+                     n_wells=NA)
+for(i in 1:nrow(tab_cc)){
+  tab_cc$n_wells[i] <- nrow(countsdf[countsdf$Sample==tab_cc$control[i] & countsdf$count_grp %in% c('30-49','≥50') &
+                                       countsdf$antigen==tab_cc$antigen[i], ])
+}
+
+# enough controls
+tab_cc$enough <- 0
+tab_cc$enough[tab_cc$n_wells>0] <- 1
+if(sum(tab_cc$enough==nrow(tab_cc))){
+  enough_ctrls <- paste('Yes✅')
+}else{
+  enough_ctrls <- paste('No❌, some control wells had insufficient bead counts')
+}
+
+# dataframe of checks
+checks <- data.frame(Q=c('1. At least 2 background wells per antigen?',
+                         '2. At least 1 well for each control sample dilution?'),
+                     A=c(enough_backgrounds, enough_ctrls))
+
+# print table of checks
+colnames(checks) <- c('Bead count check','')
+knitr::kable(checks, align='lc')
+
+
+```
+
+## Standard curves
+
+```{r standard curves, echo=FALSE, warning=FALSE, fig.width=20, fig.height=15}
+
+# extract mfi
+meddf <- format_func(raw, metric='Median', n_samps, n_antigens)
+
+# add beadcounts
+meddf$beadcount <- countsdf$count_grp
+meddf <- meddf[!meddf$beadcount=='<30', ]
+
+# tidy antigen names
+meddf$antigen[meddf$antigen=='CtXB'] <- 'CtxB'
+meddf$antigen[meddf$antigen=='HlYE antigen '] <- 'HlyE'
+meddf$antigen[meddf$antigen=='HlYE antigen'] <- 'HlyE'
+meddf$antigen[meddf$antigen=='iPAB'] <- 'ipaB'
+meddf$antigen[meddf$antigen=='PTA OSP antigen'] <- 'PTA OSP'
+meddf$antigen[meddf$antigen=='SF2A OSP BSA'] <- 'sf2a OSP-BSA'
+meddf$antigen[meddf$antigen=='SF3A OSP BSA'] <- 'sf3a OSP-BSA'
+meddf$antigen[meddf$antigen=='SF6 OSP BSA'] <- 'sf6 OSP-BSA'
+meddf$antigen[meddf$antigen=='Sonnei OSP BSA'] <- 'sonnei OSP-BSA'
+meddf$antigen[meddf$antigen=='Ty21A OSP antigen'] <- 'Ty21a OSP'
+
+
+# add control groups & concentrations
+ctrl <- meddf[meddf$group=='Controls', ]
+for(i in 1:nrow(ctrl)){
+  ctrl$controlGroup[i] <- ctrl_labs$control_sample[ctrl_labs$Label==ctrl$Sample[i]][1] 
+  ctrl$conc[i] <- ctrl_labs$conc[ctrl_labs$Label==ctrl$Sample[i]][1] 
+}
+
+# dilution series
+dcs <- ctrl[ctrl$controlGroup %in% c('MGH mixed pool','MGH VC pool', 'IMM mixed pool','IMM VC pool','HlyE mAb'), ]
+
+# Mixed pool & VC pool samples
+dcs[,c('pred','ciL','ciU')] <- NA
+for(i in c('MGH mixed pool','MGH VC pool')) for(a in unique(dcs$antigen)){
+  
+  if(!(a=='BSA')){
+     mod <- drm(log(value) ~ log(conc), data=dcs[dcs$controlGroup==i & dcs$antigen==a, ],
+                  logDose=exp(1), fct=LL.4()) 
+  
+     dcs[dcs$controlGroup==i & dcs$antigen==a, c('pred','ciL','ciU')] <-  predict(mod, interval='confidence')
+  }
+}
+
+# HlyE mAb samples
+modHlyE <- drm(log(value) ~ log(conc), data=dcs[dcs$controlGroup=='HlyE mAb' & dcs$antigen=='HlyE', ],
+               logDose=exp(1), fct=LL.4())
+
+dcs[dcs$controlGroup=='HlyE mAb' & dcs$antigen=='HlyE', c('pred','ciL','ciU')] <- predict(modHlyE, interval='confidence')
+
+# read in previous runs
+setwd('C:/Users/Megan/Desktop/Cholera/IVI/NMC Study/ForComp')
+prev <- read.csv('PrevRuns.csv')
+
+# plot
+hlye <- ggplot(dcs[dcs$controlGroup=='HlyE mAb', ], aes(log(conc), log(value)))+
+  geom_point(data=prev[prev$ctrl_group=='HlyE mAb',], aes(log(conc), log(value)), col='grey', size=2)+
+  geom_point(col='purple', size=2)+ theme_bw()+
+  facet_grid(controlGroup ~ antigen, scales='free_x')+ geom_line(aes(log(conc), pred), col='indianred')+
+  geom_ribbon(aes(ymin=ciL, ymax=ciU), fill='indianred', alpha=0.3)+ ylab('log(MFI)')+ xlab('log(concentration)')+
+  theme(text=element_text(size=24), axis.text.x=element_blank())
+
+mixed <- ggplot(dcs[dcs$controlGroup=='MGH mixed pool', ], aes(log(conc), log(value)))+ 
+      geom_point(data=prev[prev$ctrl_group=='MGH mixed pool',], aes(log(conc), log(value)), col='grey', size=2)+
+  geom_point(col='purple', size=2)+ theme_bw()+
+  facet_grid(controlGroup ~ antigen, scales='free_x')+ geom_line(aes(log(conc), pred), col='indianred')+
+  geom_ribbon(aes(ymin=ciL, ymax=ciU), fill='indianred', alpha=0.3)+ ylab('log(MFI)')+
+  theme(text=element_text(size=24), axis.title.x = element_blank(), axis.text.x = element_blank())
+
+vc <- ggplot(dcs[dcs$controlGroup=='MGH VC pool', ], aes(log(conc), log(value)))+
+  geom_point(data=prev[prev$ctrl_group=='MGH VC pool',], aes(log(conc), log(value)), col='grey', size=2)+
+  geom_point(col='purple', size=2)+ theme_bw()+
+  facet_grid(controlGroup ~ antigen, scales='free_x')+ geom_line(aes(log(conc), pred), col='indianred')+
+  geom_ribbon(aes(ymin=ciL, ymax=ciU), fill='indianred', alpha=0.3)+ ylab('log(MFI)')+
+  theme(text=element_text(size=24), axis.title.x = element_blank(), axis.text.x = element_blank())
+
+
+plot_grid(mixed, vc, hlye, ncol=1)
+
+```
+
+Grey points show the results from previous plate runs. Purple points show the results from this plate and red lines show the standard curve fit.
+
+## High/Low controls
+
+```{r high-low controls, echo=FALSE, warning=FALSE, fig.width=20, fig.height=11}
+
+# extract high/low control data
+HL <- ctrl[ctrl$controlGroup %in% c('MGH Typhi HL', 'MGH Cholera HL', 'MGH Shigella HL'), ]
+
+# tidy data from previous runs to compare
+prevHL <- prev[prev$ctrl_group %in% c('MGH Typhi HL', 'MGH Cholera HL', 'MGH Shigella HL'),]
+prevHL$controlGroup <- prevHL$ctrl_group
+prevHL <- prevHL[!(prevHL$which %in% c('Claire at icddrb','icddrb_14.09.24') & prevHL$controlGroup=='MGH Shigella HL'),]
+
+# plot
+ggplot(HL, aes(factor(conc), log(value)))+ 
+  geom_point(data=prevHL, aes(factor(conc), log(value)), col='grey', size=2)+
+  geom_point(col='purple', size=2)+
+  theme_bw()+ theme(text=element_text(size=24), axis.text.x=element_text(angle=60, hjust=1))+
+  facet_grid(controlGroup~antigen)+ xlab('dilution')+ ylab('log(MFI)')+
+  scale_x_discrete(breaks=factor(unique(HL$conc)), labels=c('1:1000','1:4000','1:16000'))
+
+
+```
+
+Grey points show the results from previous plates and purple points show the results from the current plate.
+
+## Samples to be re-run
+
+```{r sample reruns, echo=FALSE, warning=FALSE}
+
+# any sample wells with <30 bead counts
+sampcounts <- countsdf[countsdf$group=='Samples', ]
+reruns <- unique(sampcounts$Sample[sampcounts$count_grp=='<30'])
+
+# create csv of sample names for download if any need to be re-run
+if(length(reruns)==0){
+  
+  cat('No samples need to be re-run😄')
+  
+}else{
+  
+  cat(paste(length(reruns), 'Here are the sample IDs that need to be re-run. Download the sample IDs below.'))
+  knitr::kable(reruns_tab, align='cc')
+  
+  download_this(data.frame(plate_name='plate01', reruns=reruns),
+    output_name = "RerunIDs",
+    output_extension = ".csv",
+    button_label = "Download sample IDs",
+    button_type = "primary",
+    has_icon = TRUE,
+    icon = "fa fa-save"
+  )
+  
+}
+
+
+```
