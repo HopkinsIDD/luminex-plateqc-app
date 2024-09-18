@@ -2,6 +2,8 @@
 format:
   html:
     embed-resources: true
+    toc: true
+    toc-location: left
 editor: visual
 params:
   raw: NULL
