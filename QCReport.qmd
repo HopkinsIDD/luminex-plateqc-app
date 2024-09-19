@@ -8,6 +8,8 @@ editor: visual
 params:
   raw: NULL
   plate_name: NULL
+  ctrl_labs: NULL
+  prev_runs: NULL
 title: "QC Report: `r params$plate_name`"
 ---
 
@@ -58,10 +60,11 @@ format_func <- function(raw_data, metric, n_samps, n_antigens){
 # read in raw file
 raw <- as.data.frame(params$raw)
 
-
 # read in control labels & concentrations
-ctrl_labs <- read.csv('FinalControlLabels.csv')
+ctrl_labs <- as.data.frame(params$ctrl_labs)
 
+# read in data from previous (good) runs
+prev <- as.data.frame(params$prev_runs)
 
 ```
 
@@ -237,10 +240,10 @@ modHlyE <- drm(log(value) ~ log(conc), data=dcs[dcs$controlGroup=='HlyE mAb' & d
 
 dcs[dcs$controlGroup=='HlyE mAb' & dcs$antigen=='HlyE', c('pred','ciL','ciU')] <- predict(modHlyE, interval='confidence')
 
-# read in previous runs
-prev <- read.csv('PrevRuns.csv')
 
 # plot
+prev$conc <- as.numeric(prev$conc)
+prev$value <- as.numeric(prev$value)
 hlye <- ggplot(dcs[dcs$controlGroup=='HlyE mAb', ], aes(log(conc), log(value)))+
   geom_point(data=prev[prev$ctrl_group=='HlyE mAb',], aes(log(conc), log(value)), col='grey', size=2)+
   geom_point(col='purple', size=2)+ theme_bw()+
@@ -283,7 +286,7 @@ prevHL <- prevHL[!(prevHL$which %in% c('Claire at icddrb','icddrb_14.09.24') & p
 
 # plot
 ggplot(HL, aes(factor(conc), log(value)))+ 
-  geom_point(data=prevHL, aes(factor(conc), log(value)), col='grey', size=2)+
+  #geom_point(data=prevHL, aes(factor(conc), log(value)), col='grey', size=2)+
   geom_point(col='purple', size=2)+
   theme_bw()+ theme(text=element_text(size=24), axis.text.x=element_text(angle=60, hjust=1))+
   facet_grid(controlGroup~antigen)+ xlab('dilution')+ ylab('log(MFI)')+
