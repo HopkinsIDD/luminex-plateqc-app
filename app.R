@@ -96,7 +96,11 @@ server <- function(input, output) {
         # Knit the document, passing in the `params` list, and eval it in a
         # child of the global environment (this isolates the code in the document
         # from the code in this app).
-        quarto_render(tempReport, execute_params = params, execute_dir = tempdir())
+        #rendered_report <- quarto_render(tempReport, execute_params = params, execute_dir = tempdir(), output_file=file)
+        rmarkdown::render(tempReport, output_file = file,
+                          params = params,
+                          envir = new.env(parent = globalenv()))
+        #file.copy(rendered_report, file)
   }
   )
 
