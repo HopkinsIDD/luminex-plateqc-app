@@ -60,6 +60,9 @@ format_func <- function(raw_data, metric, n_samps, n_antigens){
 # read in raw file
 raw <- as.data.frame(params$raw)
 
+# correct labels
+raw$V2[raw$V2=='Control: Negative Control1:1000'] <- 'Control: Negative COVID1:1000'
+
 # read in control labels & concentrations
 ctrl_labs <- as.data.frame(params$ctrl_labs)
 
@@ -170,7 +173,7 @@ for(i in 1:nrow(tab_cc)){
 # enough controls
 tab_cc$enough <- 0
 tab_cc$enough[tab_cc$n_wells>0] <- 1
-if(sum(tab_cc$enough==nrow(tab_cc))){
+if(sum(tab_cc$enough)==nrow(tab_cc)){
   enough_ctrls <- paste('Yes✅')
 }else{
   enough_ctrls <- paste('No❌, some control wells had insufficient bead counts')
@@ -286,7 +289,7 @@ prevHL <- prevHL[!(prevHL$which %in% c('Claire at icddrb','icddrb_14.09.24') & p
 
 # plot
 ggplot(HL, aes(factor(conc), log(value)))+ 
-  #geom_point(data=prevHL, aes(factor(conc), log(value)), col='grey', size=2)+
+  geom_point(data=prevHL, aes(factor(conc), log(value)), col='grey', size=2)+
   geom_point(col='purple', size=2)+
   theme_bw()+ theme(text=element_text(size=24), axis.text.x=element_text(angle=60, hjust=1))+
   facet_grid(controlGroup~antigen)+ xlab('dilution')+ ylab('log(MFI)')+
