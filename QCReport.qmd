@@ -4,12 +4,12 @@ format:
     embed-resources: true
     toc: true
     toc-location: left
-editor: visual
 params:
   raw: NULL
   plate_name: NULL
   ctrl_labs: NULL
   prev_runs: NULL
+  prev_runsIgA: NULL
 title: "QC Report: `r params$plate_name`"
 ---
 
@@ -67,7 +67,7 @@ raw$V2[raw$V2=='Control: Negative Control1:1000'] <- 'Control: Negative COVID1:1
 plate_no <- substr(params$plate_name, 5, 11)
 if(substr(plate_no, 7, 7)=="_") plate_no <- substr(plate_no, 1, 6)
 
-# anyibody isotype
+# antibody isotype
 isotype <- substr(params$plate_name, 12, 15)
 if(substr(isotype, 1, 1)=="_") isotype <- substr(isotype, 2, 4)
 if(substr(isotype, nchar(isotype), nchar(isotype))=="_") isotype <- substr(isotype, 1, 3)
@@ -75,14 +75,15 @@ if(substr(isotype, nchar(isotype), nchar(isotype))=="_") isotype <- substr(isoty
 
 # read in control labels & concentrations
 ctrl_labs <- as.data.frame(params$ctrl_labs)
+colnames(ctrl_labs)[1] <- 'Label'
 ctrl_labs <- ctrl_labs[ctrl_labs$Label %in% raw$V2, ]
 
 
 # read in data from previous (good) runs
 prev <- as.data.frame(params$prev_runs)
+prevIgA <- as.data.frame(params$prev_runsIgA)
 
 ```
-
 
 ```{r summary info, include=FALSE}
 
@@ -135,20 +136,23 @@ countsdf$antigen[countsdf$antigen=='Ty21A OSP antigen'] <- 'Ty21a OSP'
 antigens <- unique(countsdf$antigen)
 
 # group bead counts by threshold
-countsdf$count_grp <- '≥50'
+countsdf$count_grp <- '>50'
 countsdf$count_grp[countsdf$value<50] <- '30-49'
 countsdf$count_grp[countsdf$value<30] <- '<30'
-countsdf$count_grp <- factor(countsdf$count_grp, levels=c('<30','30-49','≥50'))
+countsdf$count_grp <- factor(countsdf$count_grp, levels=c('<30','30-49','>50'))
 
 # define colours for bead count groups
-cols <- c('<30'='firebrick1', '30-49'='orange','≥50'='palegreen')
+cols <- c('<30'='firebrick1', '30-49'='orange','>50'='palegreen')
+
 
 # define well row
-if(plate_size=="384"){
-  countsdf$row <- sort(rep(LETTERS[1:16], 24))[1:nrow(countsdf)]
-}else if(plate_size=="96"){
-  countsdf$row <- sort(rep(LETTERS[1:8], 12))[1:nrow(countsdf)]
+row_func <- function(df){
+  
+  for(i in 1:nrow(df)) df$row[i] <- LETTERS[1:16][str_detect(df$Location[i], LETTERS[1:16])]
+  return(df)    
+  
 }
+countsdf <- row_func(countsdf)
 
 breaks <- vector()
 for(i in 1:length(unique(countsdf$row))) breaks[i] <- countsdf$Location[countsdf$row==LETTERS[i]][1]
@@ -159,7 +163,7 @@ countsdf$Loc <- factor(countsdf$Location, levels=countsdf$Location[1:n_samps])
 ggplot(countsdf, aes(Loc, antigen))+ geom_tile(aes(fill=count_grp), col='grey')+
   theme_bw()+ labs(fill='count')+ scale_fill_manual(values=cols)+
   facet_grid(. ~ group, scales = "free", space='free')+ xlab('Well')+
-  scale_x_discrete(breaks=breaks, labels=LETTERS[1:16])+
+  scale_x_discrete(breaks=breaks, labels=LETTERS[1:length(unique(countsdf$row))])+
   theme(text=element_text(size=24))
 
 
@@ -182,7 +186,7 @@ for(i in 1:length(antigens)){
 tab_cbo$g2 <- 1
 tab_cbo$g2[tab_cbo$n_wells<2] <- 0
 if(sum(tab_cbo$g2)==n_antigens){
-  enough_backgrounds <- paste('Yes✅')
+  enough_backgrounds <- paste('Yes')
 }else{
   enough_backgrounds <- paste('No, insufficient background wells for antigens:', paste(tab_cbo$antigen[tab_cbo$g2==0]), sep=' ')
 }
@@ -193,7 +197,7 @@ tab_cc <- data.frame(control=rep(unique(ctrl_labs$Label), n_antigens),
                      antigen=sort(rep(antigens,length(unique(ctrl_labs$Label)))), 
                      n_wells=NA)
 for(i in 1:nrow(tab_cc)){
-  tab_cc$n_wells[i] <- nrow(countsdf[countsdf$Sample==tab_cc$control[i] & countsdf$count_grp %in% c('30-49','≥50') &
+  tab_cc$n_wells[i] <- nrow(countsdf[countsdf$Sample==tab_cc$control[i] & countsdf$count_grp %in% c('30-49','>50') &
                                        countsdf$antigen==tab_cc$antigen[i], ])
 }
 
@@ -201,9 +205,9 @@ for(i in 1:nrow(tab_cc)){
 tab_cc$enough <- 0
 tab_cc$enough[tab_cc$n_wells>0] <- 1
 if(sum(tab_cc$enough)==nrow(tab_cc)){
-  enough_ctrls <- paste('Yes✅')
+  enough_ctrls <- paste('Yes')
 }else{
-  enough_ctrls <- paste('No❌, some control wells had insufficient bead counts')
+  enough_ctrls <- paste('No, some control wells had insufficient bead counts')
 }
 
 
@@ -280,9 +284,9 @@ mod_hlye <- drm(log(value) ~ log(conc), data=dcs[dcs$controlGroup=='HlyE mAb' & 
 dcs[dcs$controlGroup=='HlyE mAb' & dcs$antigen=='HlyE', c('pred','ciL','ciU')] <-  predict(mod_hlye, interval='confidence')
 
 # plot
+if(isotype=='IgA') prev <- prevIgA
 prev$conc <- as.numeric(prev$conc)
 prev$value <- as.numeric(prev$value)
-if(isotype=='IgA') prev$value <- NA
 hlye <- ggplot(dcs[dcs$controlGroup=='HlyE mAb', ], aes(log(conc), log(value)))+
   geom_point(data=prev[prev$ctrl_group=='HlyE mAb',], aes(log(conc), log(value)), col='grey', size=2)+
   geom_point(col='purple', size=2)+ theme_bw()+
@@ -318,7 +322,7 @@ plot_grid(mixed, vc, hlye, ncol=1)
 
 ```
 
-Grey points show the results from previous plate runs. Purple points show the results from this plate and red lines show the standard curve fit for this plate. Standard curves (red lines) are plotted for antigens that are expected to have an increasing MFI signal at higher concentrations. Please check that the red line trends match the results from previous plates shown in grey. 
+Grey points show the results from previous plate runs. Purple points show the results from this plate and red lines show the standard curve fit for this plate. Standard curves (red lines) are plotted for antigens that are expected to have an increasing MFI signal at higher concentrations. Please check that the red line trends match the results from previous plates shown in grey.
 
 ## High/Low controls
 
@@ -363,7 +367,7 @@ ggplot(HL, aes(factor(conc), log(value)))+
 
 ```
 
-Grey points show the results from previous plates and purple points show the results from the current plate. Red lines are plotted for antigens where an increase in MFI with increasing concentration is expected. Please check that the red line increases with higher concentrations. 
+Grey points show the results from previous plates and purple points show the results from the current plate. Red lines are plotted for antigens where an increase in MFI with increasing concentration is expected. Please check that the red line increases with higher concentrations.
 
 ## Samples to be re-run
 
@@ -376,7 +380,7 @@ reruns <- unique(sampcounts$Sample[sampcounts$count_grp=='<30'])
 # create csv of sample names for download if any need to be re-run
 if(length(reruns)==0){
   
-  cat('No samples need to be re-run😄')
+  cat('No samples need to be re-run')
   
 }else{
   
@@ -397,14 +401,17 @@ if(length(reruns)==0){
 
 
 ```
+
 ## Tidy plate MFI data
-This will download a .csv file of MFI values for this plate. Any samples that had a beadcount of <30 will not be included in this file.
+
+This will download a .csv file of MFI values for this plate. Any samples that had a beadcount of \<30 will not be included in this file.
+
 ```{r tidy file, echo=FALSE, warning=FALSE}
 meddf <- meddf[!(meddf$group=='Samples' & meddf$beadcount=='<30'), ]
 colnames(meddf)[4] <- 'mfi'
 meddf <- meddf[,c(-5)]
 meddf$beadcount <- as.character(meddf$beadcount)
-meddf$beadcount[meddf$beadcount=='≥50'] <- ">50"
+meddf$beadcount[meddf$beadcount=='b	%50'] <- ">50"
 meddf$plate <- plate_no
 meddf$isotype <- isotype
 meddf <- cbind(meddf[,7:8], meddf[,1:6])
