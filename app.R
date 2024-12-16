@@ -58,10 +58,10 @@ server <- function(input, output) {
   
   #--- plate name from csv
   plate_name <- reactive({
-     df <- as.data.frame(rawdata())
-     plate_name <- df$V2[df$V1=='Batch']
-     plate_name
-   })
+    pn <- input$upload$name
+    pn
+  })
+  
   
   #--- control labels
   ctrl_labs <- reactive({
@@ -72,6 +72,11 @@ server <- function(input, output) {
   #--- data from previous runs
   prev_runs <- reactive({
     file <- "PrevRuns.csv"
+    read.csv(file)
+  })
+  
+  prev_runsIgA <- reactive({
+    file <- "PrevRuns_IgA.csv"
     read.csv(file)
   })
   
@@ -91,7 +96,7 @@ server <- function(input, output) {
         file.copy("QCReport.qmd", tempReport, overwrite = TRUE)
         
         # Set up parameters to pass to Rmd document
-        params <- list(raw=rawdata(), plate_name=plate_name(), ctrl_labs=ctrl_labs(), prev_runs=prev_runs())
+        params <- list(raw=rawdata(), plate_name=plate_name(), ctrl_labs=ctrl_labs(), prev_runs=prev_runs(), prev_runsIgA=prev_runsIgA())
         
         # Knit the document, passing in the `params` list, and eval it in a
         # child of the global environment (this isolates the code in the document
